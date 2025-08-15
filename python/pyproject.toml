@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bric-afm"
+dynamic = ["version"]
+description = 'AFM analysis.'
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = ["afm"]
+authors = [
+  { name = "Brian Carlsen", email = "carlsen.bri@gmail.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "numpy",
+  "igor2",
+  "scikit-learn",
+]
+
+[project.optional-dependencies]
+tests=["pytest"]
+
+[project.urls]
+Documentation = "https://github.com/bicarlsen/bric-afm#readme"
+Issues = "https://github.com/bicarlsen/bric-afm/issues"
+Source = "https://github.com/bicarlsen/bric-afm"
+
+[tool.hatch.version]
+path = "src/bric_afm/__about__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/bric_afm tests}"
+
+[tool.coverage.run]
+source_pkgs = ["bric_afm", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/bric_afm/__about__.py",
+]
+
+[tool.coverage.paths]
+bric_afm = ["src/bric_afm", "*/bric-afm/src/bric_afm"]
+tests = ["tests", "*/bric-afm/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
