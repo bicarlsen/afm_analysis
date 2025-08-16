@@ -19,13 +19,14 @@ class Channel:
     """
 
     def __init__(
-        self, idx: int, x: np.ndarray, y: np.ndarray, data: np.ndarray
+        self, idx: int, x: np.ndarray, y: np.ndarray, data: np.ndarray, label: str
     ) -> None:
         self._idx = idx
         self._history = ChannelHistory()
         self._x = x
         self._y = y
         self._data = data.copy()
+        self._label = label
 
     @property
     def x(self) -> np.ndarray:
@@ -50,6 +51,14 @@ class Channel:
             np.ndarray: copy of the channel's data.
         """
         return self._data.copy()
+
+    @property
+    def label(self) -> str:
+        """
+        Returns:
+            str: Channel label.
+        """
+        return self._label
 
     @property
     def history(self) -> list[Operation]:
@@ -102,7 +111,10 @@ class Image:
         self._y = y
         self._data = data
         self._labels = labels
-        self._channels = [Channel(idx, self._x, self._y, self._data[idx]) for idx in range(channels_dim)]
+        self._channels = [
+            Channel(idx, self._x, self._y, self._data[idx], self._labels[idx])
+            for idx in range(channels_dim)
+        ]
 
     def __getitem__(self, key: str) -> Channel:
         """Get an image channel by label.
@@ -146,7 +158,7 @@ class Image:
             tuple[int, int]: (width, height).
         """
         return self._data.shape[1:]
-    
+
     @property
     def labels(self) -> list[str]:
         return self._labels
