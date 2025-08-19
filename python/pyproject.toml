@@ -28,6 +28,7 @@ dependencies = [
   "numpy",
   "igor2",
   "scikit-learn",
+  "plotly",
 ]
 
 [project.optional-dependencies]

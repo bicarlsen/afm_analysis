@@ -1,6 +1,6 @@
 from .operations import Operation
 import numpy as np
-from typing import Optional, Callable
+from typing import Optional, Callable, Iterable
 
 
 class ChannelHistory:
@@ -18,15 +18,13 @@ class Channel:
     Tracks operations that have been applied.
     """
 
-    def __init__(
-        self, idx: int, x: np.ndarray, y: np.ndarray, data: np.ndarray, label: str
-    ) -> None:
+    def __init__(self, idx: int, image: "Image") -> None:
         self._idx = idx
         self._history = ChannelHistory()
-        self._x = x
-        self._y = y
-        self._data = data.copy()
-        self._label = label
+        self._x = image._x
+        self._y = image._y
+        self._data = image._data[idx].copy()
+        self._image_labels = image._labels
 
     @property
     def x(self) -> np.ndarray:
@@ -58,7 +56,7 @@ class Channel:
         Returns:
             str: Channel label.
         """
-        return self._label
+        return self._image_labels[self._idx]
 
     @property
     def history(self) -> list[Operation]:
@@ -111,10 +109,7 @@ class Image:
         self._y = y
         self._data = data
         self._labels = labels
-        self._channels = [
-            Channel(idx, self._x, self._y, self._data[idx], self._labels[idx])
-            for idx in range(channels_dim)
-        ]
+        self._channels = [Channel(idx, self) for idx in range(channels_dim)]
 
     def __getitem__(self, key: str) -> Channel:
         """Get an image channel by label.
@@ -177,6 +172,24 @@ class Image:
         except ValueError:
             return None
 
+    def map_labels(self, label_map: dict[str, str]):
+        """Change channel labels.
+
+        Args:
+            label_map (dict[str, str]): Dictionary of {<current>: <new>} labels.
+
+        Raises:
+            KeyError: Label does not exist.
+        """
+        for src, dst in label_map.items():
+            idx = None
+            try:
+                idx = self._labels.index(src)
+            except ValueError:
+                raise KeyError(f"label `{src}` does not exist")
+
+            self._labels[idx] = dst
+
     def copy_all_channels(self) -> np.ndarray:
         """Copy all channel data.
 
@@ -219,3 +232,188 @@ class Image:
             raise ValueError("invalid data shape")
 
         self._data[channel] = data
+
+
+class ChannelGroup:
+    @classmethod
+    def from_image(cls, image: Image) -> "ChannelGroup":
+        return cls(image._channels)
+
+    def __init__(
+        self, channels: list[Channel], image_labels: Optional[list[str]] = None
+    ):
+        if image_labels is not None:
+            if len(image_labels) != len(channels):
+                raise ValueError("invalid image labels, incompatible length")
+
+            if len(set(image_labels)) != len(image_labels):
+                raise ValueError("invalid image labels, duplicate labels")
+
+        self._channels = channels
+        self._image_labels = image_labels
+
+    def __getitem__(self, key: str) -> Channel:
+        """Get a channel by its image label.
+
+        Args:
+            key (str): Image label.
+
+        Raises:
+            KeyError: Image labels are not set.
+            KeyError: Label does not exist.
+
+        Returns:
+            Channel: Channel associated with the image label.
+        """
+        if self._image_labels is None:
+            raise KeyError("image labels not set")
+
+        try:
+            idx = self._image_labels.index(key)
+        except ValueError:
+            raise KeyError("image label does not exist")
+
+        return self._channels[idx]
+
+    def __iter__(self):
+        for ch in self._channels:
+            yield ch
+
+    def __len__(self) -> int:
+        return len(self._channels)
+
+    @property
+    def image_labels(self) -> Optional[list[str]]:
+        """
+        Returns:
+            Optional[list[str]]: Copy of the image labels.
+        """
+        if self._image_labels is None:
+            return None
+        else:
+            return self._image_labels.copy()
+
+    def apply(self, f: Operation):
+        """Apply an operation to all channels.
+
+        Args:
+            f (Operation): Operation to perform.
+        """
+        for ch in self._channels:
+            ch.apply(f)
+
+    def items(self) -> Iterable[tuple[str, Channel]]:
+        if self._image_labels is None:
+            raise ValueError("image lables not set")
+
+        return zip(self._image_labels, self._channels)
+
+
+class ImageGroup:
+    def __init__(self, images: list[Image], labels: Optional[list[str]]) -> None:
+        if labels is not None:
+            if len(images) != len(labels):
+                raise ValueError(f"incompatible labels, length does not match images")
+            if len(set(labels)) != len(labels):
+                raise ValueError("invalid labels, duplicate label found")
+
+        self._images = images
+        self._labels = labels
+
+    def __getitem__(self, key: str) -> Image:
+        """Get an image by its label.
+
+        Args:
+            key (str): Image label.
+
+        Raises:
+            KeyError: Labels are not set.
+            KeyError: Label is not found.
+
+        Returns:
+            Image: Image associated with the given label.
+        """
+        if self._labels is None:
+            raise KeyError("no labels set")
+
+        try:
+            idx = self._labels.index(key)
+        except ValueError:
+            raise KeyError("label not found")
+
+        return self._images[idx]
+
+    def __iter__(self):
+        for im in self._images:
+            yield im
+
+    def __len__(self) -> int:
+        return len(self._images)
+
+    @property
+    def labels(self) -> Optional[list[str]]:
+        """
+        Returns:
+            Optional[list[str]]: Copy of labels.
+        """
+        if self._labels is None:
+            return None
+
+        return self._labels.copy()
+
+    @labels.setter
+    def labels(self, labels: list[str]):
+        """Set image labels.
+
+        Args:
+            labels (list[str]): Labels to apply.
+
+        Raises:
+            ValueError: Labels have invalid length compared to images.
+            ValueError: A label is duplicated.
+        """
+        if len(self._images) != len(labels):
+            raise ValueError(f"incompatible labels, length does not match images")
+        if len(set(labels)) != len(labels):
+            raise ValueError("invalid labels, duplicate label found")
+
+        self._labels = labels
+
+    def map_labels(self, label_map: dict[str, str]):
+        """Change labels.
+
+        Args:
+            label_map (dict[str, str]): Dictionary of {<current>: <new>}.
+
+        Raises:
+            ValueError: If labels have not been set.
+            KeyError: If a label in the map does not exist.
+        """
+        if self._labels is None:
+            raise ValueError("labels not set")
+
+        for src, dst in label_map.items():
+            try:
+                idx = self._labels.index(src)
+            except ValueError:
+                raise KeyError(f"label {src} does not exist")
+
+            self._labels[idx] = dst
+
+    def channels(self, key: str) -> ChannelGroup:
+        """Get specified channel from each image.
+
+        Args:
+            key (str): Channel label.
+
+        Raises:
+            ValueError: If an image does not contain a channel with the given label.
+
+        Returns:
+            ChannelGroup: Channel from each image.
+        """
+        channels = [image[key] for image in self._images]
+        if any([ch is None for ch in channels]):
+            raise ValueError("not all images contain the channel")
+
+        return ChannelGroup(channels, image_labels=self._labels)
