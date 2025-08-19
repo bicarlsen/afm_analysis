@@ -66,6 +66,22 @@ class Channel:
         """
         return self._history._operations.copy()
 
+    def clone(self) -> "Channel":
+        """Clone the channel.
+
+        Returns:
+            Channel: Clone with all data copied.
+        """
+        clone = Channel.__new__(Channel)
+        clone._idx = self._idx
+        clone._history = ChannelHistory()
+        clone._history._operations = self._history._operations.copy()
+        clone._x = self._x
+        clone._y = self._y
+        clone._data = self._data.copy()
+        clone._image_labels = self._image_labels
+        return clone
+
     def apply(self, f: Operation):
         """Apply an operation to the channel data.
 
