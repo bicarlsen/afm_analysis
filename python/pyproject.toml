@@ -29,6 +29,7 @@ dependencies = [
   "igor2",
   "scikit-learn",
   "plotly",
+  "trimesh[easy]",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,15 @@
 from .operations import Operation
 import numpy as np
-from typing import Optional, Callable, Iterable
+from typing import Optional, Callable, Iterable, Any
+
+
+class OperationInstantiation:
+    def __init__(
+        self, operation: Operation, args: tuple[Any], kwargs: dict[str, Any]
+    ) -> None:
+        self._operation = operation
+        self._args = args
+        self._kwargs = kwargs
 
 
 class ChannelHistory:
@@ -9,8 +18,8 @@ class ChannelHistory:
     def __init__(self) -> None:
         self._operations = []
 
-    def push(self, f: Operation):
-        self._operations.append(f)
+    def push(self, f: Operation, args: tuple[Any], kwargs: dict[str, Any]):
+        self._operations.append(OperationInstantiation(f, args, kwargs))
 
 
 class Channel:
@@ -66,11 +75,11 @@ class Channel:
         """
         return self._history._operations.copy()
 
-    def clone(self) -> "Channel":
-        """Clone the channel.
+    def copy(self) -> "Channel":
+        """Copy the channel.
 
         Returns:
-            Channel: Clone with all data copied.
+            Channel: Copy with all data copied.
         """
         clone = Channel.__new__(Channel)
         clone._idx = self._idx
@@ -82,14 +91,16 @@ class Channel:
         clone._image_labels = self._image_labels
         return clone
 
-    def apply(self, f: Operation):
+    def apply(self, f: Operation, *args, **kwargs):
         """Apply an operation to the channel data.
 
         Args:
             f (Operation): Operation to perform.
+            args: Positional arguments to pass to the operation.
+            kwargs: Keyword arguments to pass to the operation.
         """
-        self._data = f(self._x, self._y, self._data)
-        self._history.push(f)
+        self._data = f(self._x, self._y, self._data, *args, **kwargs)
+        self._history.push(f, args, kwargs)
 
 
 class Image:
@@ -309,14 +320,24 @@ class ChannelGroup:
         else:
             return self._image_labels.copy()
 
-    def apply(self, f: Operation):
+    def copy(self) -> "ChannelGroup":
+        """
+        Returns:
+            ChannelGroup: Copy of the channel group.
+        """
+        channels = [ch.copy() for ch in self._channels]
+        return ChannelGroup(channels, self._image_labels)
+
+    def apply(self, f: Operation, *args: tuple[Any], **kwargs: dict[str, Any]):
         """Apply an operation to all channels.
 
         Args:
             f (Operation): Operation to perform.
+            args: Positional arguments to pass to the operation.
+            kwargs: Keyword arguments to pass to the operation.
         """
         for ch in self._channels:
-            ch.apply(f)
+            ch.apply(f, *args, **kwargs)
 
     def items(self) -> Iterable[tuple[str, Channel]]:
         if self._image_labels is None:

@@ -10,7 +10,7 @@ img = afm.mfp3d.load_ibw("image.ibw")
 height = img["HeightTrace"]
 
 # plot raw data
-fig = afm.plot.plot_interactive(height)
+fig = afm.plot.plot(height)
 fig.show()
 
 # %%
@@ -19,6 +19,6 @@ height.apply(afm.operations.plane_level)
 height.apply(afm.operations.min_to_zero)
 
 # plot modified data
-fig = afm.plot.plot_interactive(height)
+fig = afm.plot.plot(height)
 fig.show()
 # %%
