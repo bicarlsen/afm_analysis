@@ -1,6 +1,10 @@
-from .operations import Operation
+from __future__ import annotations
 import numpy as np
-from typing import Optional, Callable, Iterable, Any
+from typing import TYPE_CHECKING, Optional, Iterable, Any
+
+if TYPE_CHECKING:
+    from .operations import Operation
+    from .statistics import Calculation
 
 
 class OperationInstantiation:
@@ -75,7 +79,7 @@ class Channel:
         """
         return self._history._operations.copy()
 
-    def copy(self) -> "Channel":
+    def copy(self) -> Channel:
         """Copy the channel.
 
         Returns:
@@ -99,7 +103,7 @@ class Channel:
             args: Positional arguments to pass to the operation.
             kwargs: Keyword arguments to pass to the operation.
         """
-        self._data = f(self._x, self._y, self._data, *args, **kwargs)
+        self._data = f(self, *args, **kwargs)
         self._history.push(f, args, kwargs)
 
 
@@ -263,7 +267,7 @@ class Image:
 
 class ChannelGroup:
     @classmethod
-    def from_image(cls, image: Image) -> "ChannelGroup":
+    def from_image(cls, image: Image) -> ChannelGroup:
         return cls(image._channels)
 
     def __init__(
@@ -320,7 +324,13 @@ class ChannelGroup:
         else:
             return self._image_labels.copy()
 
-    def copy(self) -> "ChannelGroup":
+    def items(self) -> Iterable[tuple[str, Channel]]:
+        if self._image_labels is None:
+            raise ValueError("image lables not set")
+
+        return zip(self._image_labels, self._channels)
+
+    def copy(self) -> ChannelGroup:
         """
         Returns:
             ChannelGroup: Copy of the channel group.
@@ -339,11 +349,20 @@ class ChannelGroup:
         for ch in self._channels:
             ch.apply(f, *args, **kwargs)
 
-    def items(self) -> Iterable[tuple[str, Channel]]:
-        if self._image_labels is None:
-            raise ValueError("image lables not set")
+    def calculate(
+        self, f: Calculation, *args: tuple[Any], **kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Perform a calculation on all channels.
 
-        return zip(self._image_labels, self._channels)
+        Args:
+            f (Calculation): Calculation to perform.
+            args: Positional arguments to pass to the operation.
+            kwargs: Keyword arguments to pass to the operation.
+
+        Returns:
+            dict[str, Any]: Calculation result for each channel.
+        """
+        return {lbl: f(ch, *args, **kwargs) for lbl, ch in self.items()}
 
 
 class ImageGroup:

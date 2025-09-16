@@ -1,51 +1,76 @@
+from __future__ import annotations
 from . import mesh, utils
 import numpy as np
 from sklearn import linear_model
 import trimesh
-from typing import Protocol, Optional
+from typing import Protocol, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from . import image
 
 
-class Operation:
-    def __call__(
-        self, x: np.ndarray, y: np.ndarray, data: np.ndarray, *args, **kwargs
-    ) -> np.ndarray: ...
+class Operation(Protocol):
+    def __call__(self, channel: image.Channel, *args, **kwargs) -> np.ndarray: ...
 
 
-def min_to_zero(x: np.ndarray, y: np.ndarray, data: np.ndarray) -> np.ndarray:
+def crop(channel: image.Channel) -> np.ndarray:
+    """Crop an image as large as possible removing all `np.nan` values.
+
+    Args:
+        channel (image.Channel): Channel.
+
+    Returns:
+        np.ndarray: Cropped cahnnel data.
+    """
+    raise NotImplementedError("todo")
+
+
+def min_to_zero(channel: image.Channel) -> np.ndarray:
     """Zero data such that the minimum is 0.
 
     Args:
-        x (np.ndarray): x index. Should be a 1D array.
-        y (np.ndarray): y index. Should be a 1D array.
-        data (np.ndarray): Data values. Should be a 2D array.
+        channel (image.Channel): Channel.
 
     Returns:
         np.ndarray: Data translated such that the minimum value is 0.
     """
+    data = channel.data
     return data - data.min()
 
 
-def plane_level(x: np.ndarray, y: np.ndarray, data: np.ndarray) -> np.ndarray:
+def plane_level(channel: image.Channel) -> np.ndarray:
     """Level data over the average plane determined by linear regression.
 
     Args:
-        x (np.ndarray): x index. Should be a 1D array.
-        y (np.ndarray): y index. Should be a 1D array.
-        data (np.ndarray): Data values. Should be a 2D array.
+        channel (image.Channel): Channel.
 
     Returns:
         np.ndarray: Leveled data values.
     """
-    coords = utils.xy_to_coords(x, y)
-    fit = linear_model.LinearRegression().fit(coords.reshape(-1, 2), data.flatten())
+    coords = utils.xy_to_coords(channel.x, channel.y)
+    fit = linear_model.LinearRegression().fit(
+        coords.reshape(-1, 2), channel.data.flatten()
+    )
     plane = np.dot(coords, fit.coef_) + fit.intercept_
-    return data - plane
+    return channel.data - plane
+
+
+def surface_fit(channel: image.Channel, xdeg: int = 1, ydeg: int = 1) -> np.ndarray:
+    """Level data over a 2D polynomial surface.
+
+    Args:
+        channel (image.Channel): Channel.
+        xdeg (int): Polynomial degree along x axis.
+        ydeg (int): Polynomial degree along y axis.
+
+    Returns:
+        np.ndarray: Leveled data.
+    """
+    raise NotImplementedError("todo")
 
 
 def add_conformal_layer(
-    x: np.ndarray,
-    y: np.ndarray,
-    data: np.ndarray,
+    channel: image.Channel,
     thickness: float,
     scale: float = 1,
 ) -> np.ndarray:
@@ -54,16 +79,13 @@ def add_conformal_layer(
     offsetting vertices by `thickness` in the direction of their normal.
 
     Args:
-        x (np.ndarray): x index. Should be 1D.
-        y (np.ndarray): y index. Should be 1D
-        data (np.ndarray): Data values. Should be 2D.
+        channel (image.Channel): Channel.
         thickness (float): Thickness of the conformal layer.
         scale (float): How to scale values.
         The underlying library used to compute the mesh does better when values are ~1.
         Defaults to 1.
 
     Raises:
-        ValueError: Incompatible size of `x or `y` with `data`.
         ValueError: Invalid `thickness`.
         ValueError: Invalid `scale`.
 
@@ -76,21 +98,17 @@ def add_conformal_layer(
         + This function can be memory intensive. If you run into a `MemoryError`
         be sure that all values are ~1 (i.e. not 1e-9).
     """
-    if x.size != data.shape[0]:
-        raise ValueError("invalid shape along x")
-    if y.size != data.shape[1]:
-        raise ValueError("invalid shape along y")
     if thickness < 0:
         raise ValueError("thickness can not be negative")
     if scale <= 0:
         raise ValueError("invalid scale, must be greater than 0")
 
     if thickness == 0:
-        return data
+        return channel.data
 
-    x = x * scale
-    y = y * scale
-    m = mesh.create_mesh(x, y, data * scale)
+    x = channel.x * scale
+    y = channel.y * scale
+    m = mesh.create_mesh(x, y, channel.data * scale)
 
     offset_vertices = m.vertices + thickness * m.vertex_normals
     offset_mesh = trimesh.Trimesh(
@@ -108,7 +126,7 @@ def add_conformal_layer(
     intersections_x = np.searchsorted(x, intersections[:, 0], side="left")
     intersections_y = np.searchsorted(y, intersections[:, 1], side="left")
     intersections_idx = np.ravel_multi_index(
-        [intersections_x, intersections_y], data.shape
+        [intersections_x, intersections_y], channel.data.shape
     )
     intersections_z = intersections[:, 2]
     vertices = np.full((x.size, y.size), np.nan)
