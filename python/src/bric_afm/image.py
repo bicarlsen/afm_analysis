@@ -29,6 +29,10 @@ class ChannelHistory:
 class Channel:
     """An image channel.
     Tracks operations that have been applied.
+
+    Args:
+        idx (int): Channel index within the image.
+        image (Image): Image to pull the channel from.
     """
 
     def __init__(self, idx: int, image: "Image") -> None:
@@ -36,7 +40,7 @@ class Channel:
         self._history = ChannelHistory()
         self._x = image._x
         self._y = image._y
-        self._data = image._data[idx].copy()
+        self._data = image._data[:, :, idx].copy()
         self._image_labels = image._labels
 
     @property
@@ -59,7 +63,7 @@ class Channel:
     def data(self) -> np.ndarray:
         """
         Returns:
-            np.ndarray: copy of the channel's data.
+            np.ndarray: Copy of the channel's data.
         """
         return self._data.copy()
 
@@ -118,29 +122,40 @@ class Image:
         labels: list[str],
     ) -> None:
         """Create a new Image.
+        `x` is the fast axis, `y` is the slow axis.
 
         Args:
-            x (np.ndarray): x index points.
-            y (np.ndarray): y index points.
-            data (np.ndarray): Image data. Should be in (channel, x, y).
+            x (np.ndarray): x index (fast axis) points.
+            y (np.ndarray): y index (slow axis) points.
+            data (np.ndarray): Image data. Should be in `(y, x, channel)`.
             labels (list[str]): Channel labels.
 
         Raises:
             ValueError: Data shape is invalid.
         """
-        channels_dim, x_dim, y_dim = data.shape
-        if (
-            (channels_dim != len(labels))
-            or (x_dim != x.shape[0])
-            or (y_dim != y.shape[0])
-        ):
-            raise ValueError("invalid data shape")
+        if x.ndim != 1:
+            raise ValueError("x axis must be 1D")
+        if y.ndim != 1:
+            raise ValueError("y axis must be 1D")
+        if data.ndim != 3:
+            raise ValueError(
+                f"invalid data shape, expected 3 dimensions found {data.ndim}"
+            )
+
+        expected_shape = (y.shape[0], x.shape[0], len(labels))
+        if data.shape != expected_shape:
+            raise ValueError(
+                f"invalid data shape, expected {expected_shape} found {data.shape}"
+            )
+
+        if len(set(labels)) != len(labels):
+            raise ValueError("labels can not be reperated")
 
         self._x = x
         self._y = y
         self._data = data
         self._labels = labels
-        self._channels = [Channel(idx, self) for idx in range(channels_dim)]
+        self._channels = [Channel(idx, self) for idx in range(len(labels))]
 
     def __getitem__(self, key: str) -> Channel:
         """Get an image channel by label.

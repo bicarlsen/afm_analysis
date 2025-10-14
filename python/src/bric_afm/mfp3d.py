@@ -2,8 +2,9 @@ from .image import Image
 import numpy as np
 import igor2 as igor
 
+
 def load_ibw(path: str) -> Image:
-    """Load an `.ibw` image from the MFP-3D.
+    """Load an `.ibw` image from an Asylum MFP-3D AFM.
 
     Args:
         path (str): Path to the file.
@@ -47,11 +48,8 @@ def load_ibw(path: str) -> Image:
     except ValueError:
         raise RuntimeError("indices could not be extracted")
 
-    x_index = np.linspace(
-        x_start, x_start + x_step * x_dim, num=x_dim, endpoint=True
-    )
-    y_index = np.linspace(
-        y_start, y_start + y_step * y_dim, num=y_dim, endpoint=True
-    )
-    imgs = data.transpose(2, 0, 1)
-    return Image(x_index, y_index, imgs, labels)
+    x_index = np.linspace(x_start, x_start + x_step * x_dim, num=x_dim, endpoint=True)
+    y_index = np.linspace(y_start, y_start + y_step * y_dim, num=y_dim, endpoint=True)
+    data = data.transpose(1, 0, 2)
+    data = np.flipud(data)
+    return Image(x_index, y_index, data, labels)

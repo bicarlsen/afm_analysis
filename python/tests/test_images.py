@@ -4,14 +4,14 @@ import numpy as np
 
 
 def test_image_label_map():
-    channels_dim = 3
-    x_dim = 10
     y_dim = 10
+    x_dim = 10
+    channels_dim = 3
     labels = ["one", "two", "three"]
     img = Image(
-        np.arange(x_dim),
         np.arange(y_dim),
-        np.random.randn(channels_dim, x_dim, y_dim),
+        np.arange(x_dim),
+        np.random.randn(y_dim, x_dim, channels_dim),
         labels,
     )
 

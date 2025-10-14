@@ -17,6 +17,7 @@ def plot(channel: Channel) -> go.Figure:
     fig = px.imshow(
         channel.data, x=channel.x, y=channel.y, labels={"color": channel.label}
     )
+    fig.update_layout(xaxis={"side": "top"})
     return fig
 
 
