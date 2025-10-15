@@ -21,9 +21,7 @@ mesh.show()
 # %%
 # add a conformal layer
 thickness = 300
-conf = afm.operations.add_conformal_layer(
-    img.x, img.y, img["HeightTrace"].data, thickness, scale=scale
-)
+conf = afm.operations.add_conformal_layer(img["HeightTrace"], thickness, scale=scale)
 
 # %%
 # display the surface with the conformal layer
