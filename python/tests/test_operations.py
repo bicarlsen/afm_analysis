@@ -24,3 +24,31 @@ def test_plane_level():
     res = ops.plane_level(img["data"])
     assert res.shape == (len(x), len(y))
     assert np.allclose(res, np.zeros_like(res))
+
+
+def test_crop_boundary_mask():
+    x = np.array([0, 1, 2, 3, 4])
+    y = np.array([0, 1, 2, 3, 4])
+    data = np.array(
+        [
+            [[0], [0], [0], [0], [0]],
+            [[0], [np.nan], [0], [0], [0]],
+            [[0], [0], [0], [0], [0]],
+            [[0], [0], [0], [0], [0]],
+            [[0], [0], [0], [0], [np.nan]],
+        ]
+    )
+
+    img = Image(x, y, data, ["data"])
+    mask = ops.crop_boundary_mask(img["data"])
+
+    expected = np.array(
+        [
+            [False, False, False, False, False],
+            [False, False, False, False, False],
+            [False, False, True, True, False],
+            [False, False, True, True, False],
+            [False, False, False, False, False],
+        ]
+    )
+    assert (expected == mask).all()
